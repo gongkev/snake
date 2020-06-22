@@ -176,12 +176,11 @@ class SnakeEnv(gym.Env):
         self.appletrans.set_translation(a_x, a_y)
         self.headtrans.set_translation(h_x, h_y)
 
-        for t, (x, y) in enumerate(self.body):
+        for i, (x, y) in enumerate(self.body):
             try: 
-                temp_x, temp_y = (x - self.init_body[t][0]) * scale_x, (y - self.init_body[t][1]) * scale_y
-                exec(f"self.transbody{t}.set_translation({temp_x}, {temp_y})")
+                temp_x, temp_y = (x - self.init_body[i][0]) * scale_x, (y - self.init_body[i][1]) * scale_y
+                exec(f"self.transbody{i}.set_translation({temp_x}, {temp_y})")
             except:
-                i = len(self.body) - 1
                 (x,y) = self.body[i]
                 l, r, t, b = (x-1) * scale_x, (x) * scale_x, (y-1) * scale_y, (y) * scale_y
                 exec(f"body{i} = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])")
@@ -189,8 +188,8 @@ class SnakeEnv(gym.Env):
                 exec(f"self.transbody{i} = rendering.Transform()")
                 exec(f"body{i}.add_attr(self.transbody{i})")
                 exec(f"self.viewer.add_geom(body{i})")
-                temp_x, temp_y = (x - self.init_body[t][0]) * scale_x, (y - self.init_body[t][1]) * scale_y
-                exec(f"self.transbody{t}.set_translation({temp_x}, {temp_y})")
+                temp_x, temp_y = (x - self.init_body[i][0]) * scale_x, (y - self.init_body[i][1]) * scale_y
+                exec(f"self.transbody{i}.set_translation({temp_x}, {temp_y})")
                 
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
