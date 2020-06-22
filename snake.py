@@ -66,7 +66,6 @@ class SnakeEnv(gym.Env):
         self.state = _get_gamestate((self.x_max - 1, self.y_max - 1), self.head_x, self.head_y, self.apple_x, self.apple_y, self.body)
         
         #for rendering
-        self.rendered_body = 0
         self.init_ax, self.init_ay = copy(self.apple_x), copy(self.apple_y)
         self.init_hx, self.init_hy = copy(self.head_x), copy(self.head_y)
         self.init_body = copy(self.body)
@@ -93,25 +92,26 @@ class SnakeEnv(gym.Env):
 
         #check for collision
         if self.head_x == self.x_min or self.head_x == self.x_max or self.head_y == self.y_min or self.head_y == self.y_max:
+            self.score -= 100
             done = True
             return self.state, self.score, done, info
 
         elif (self.head_x, self.head_y) in self.body:
+            self.score -= 100
             done = True
             return self.state, self.score, done, info
         
         if self.head_x == self.apple_x and self.head_y == self.apple_y:
-            self.score += 10*(len(self.body) + 1)
+            self.score += 100
             valid_cells = _get_valid_cells((self.x_max - 1, self.y_max - 1), self.head_x, self.head_y, self.body)
             self.apple_x, self.apple_y = valid_cells[random.randint(0, len(valid_cells)-1)]
+            self.init_body.append(self.body[-1])
 
         else:
             #snake does not grow if it did not eat the apple
             del self.body[-1]
 
         self.state = _get_gamestate((self.x_max - 1, self.y_max - 1), self.head_x, self.head_y, self.apple_x, self.apple_y, self.body)
-
-
 
         return self.state, self.score, done, info
 
@@ -128,11 +128,12 @@ class SnakeEnv(gym.Env):
         
         self.state = _get_gamestate((self.x_max - 1, self.y_max - 1), self.head_x, self.head_y, self.apple_x, self.apple_y, self.body)
         
-        self.rendered_body = 0
         self.init_ax, self.init_ay = copy(self.apple_x), copy(self.apple_y)
         self.init_hx, self.init_hy = copy(self.head_x), copy(self.head_y)
         self.init_body = copy(self.body)
-
+        
+        return self.state
+    
     def render(self, mode = 'human', close = False):
         from gym.envs.classic_control import rendering
         screen_width = 400
@@ -168,20 +169,6 @@ class SnakeEnv(gym.Env):
                 exec(f"self.transbody{i} = rendering.Transform()")
                 exec(f"body{i}.add_attr(self.transbody{i})")
                 exec(f"self.viewer.add_geom(body{i})")
-                self.rendered_body += 1
-        
-        #creates new body piece
-        if len(self.body) > self.rendered_body:
-            i = len(self.body) - 1
-            (x,y) = self.body[i]
-            l, r, t, b = (x-1) * scale_x, (x) * scale_x, (y-1) * scale_y, (y) * scale_y
-            exec(f"body{i} = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])")
-            exec(f"body{i}.set_color(0.3, 0.8, 0.3)")
-            exec(f"self.transbody{i} = rendering.Transform()")
-            exec(f"body{i}.add_attr(self.transbody{i})")
-            exec(f"self.viewer.add_geom(body{i})")
-            self.init_body.append((x,y))
-            self.rendered_body = len(self.body)
         
         #moves things around
         a_x, a_y = (self.apple_x - self.init_ax) * scale_x, (self.apple_y - self.init_ay) * scale_y
@@ -190,9 +177,21 @@ class SnakeEnv(gym.Env):
         self.headtrans.set_translation(h_x, h_y)
 
         for t, (x, y) in enumerate(self.body):
-            temp_x, temp_y = (x - self.init_body[t][0]) * scale_x, (y - self.init_body[t][1]) * scale_y
-            exec(f"self.transbody{t}.set_translation({temp_x}, {temp_y})")
-
+            try: 
+                temp_x, temp_y = (x - self.init_body[t][0]) * scale_x, (y - self.init_body[t][1]) * scale_y
+                exec(f"self.transbody{t}.set_translation({temp_x}, {temp_y})")
+            except:
+                i = len(self.body) - 1
+                (x,y) = self.body[i]
+                l, r, t, b = (x-1) * scale_x, (x) * scale_x, (y-1) * scale_y, (y) * scale_y
+                exec(f"body{i} = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])")
+                exec(f"body{i}.set_color(0.3, 0.8, 0.3)")
+                exec(f"self.transbody{i} = rendering.Transform()")
+                exec(f"body{i}.add_attr(self.transbody{i})")
+                exec(f"self.viewer.add_geom(body{i})")
+                temp_x, temp_y = (x - self.init_body[t][0]) * scale_x, (y - self.init_body[t][1]) * scale_y
+                exec(f"self.transbody{t}.set_translation({temp_x}, {temp_y})")
+                
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
     def close(self):
@@ -203,10 +202,10 @@ class SnakeEnv(gym.Env):
 def _get_gamestate(max_tuple, head_x, head_y, apple_x, apple_y, body):
     #Calculates the game state as an array
     array = np.ones(max_tuple)*EMPTY
-    array[apple_y, apple_x] = APPLE
+    array[apple_y-1, apple_x-1] = APPLE
     for (x, y) in body:
-        array[y, x] = TAIL
-    array[head_y, head_x] = HEAD
+        array[y-1, x-1] = TAIL
+    array[head_y-1, head_x-1] = HEAD
     return array
 
 def _get_valid_cells(max_tuple, head_x, head_y, body):
@@ -215,4 +214,3 @@ def _get_valid_cells(max_tuple, head_x, head_y, body):
     ys = range(1, max_tuple[1])
     cells = product(xs, ys)
     return ([i for i in cells if i not in ([(head_x, head_y)] + body)])
-
